@@ -14,6 +14,8 @@ class ViewController: UIViewController,CBCentralManagerDelegate,CBPeripheralDele
     var myCentralManager : CBCentralManager!
     var myPeripheral : CBPeripheral!
     
+    let distance = "2A19"
+    
     @IBOutlet weak var scanbutton: UIButton!
     @IBOutlet weak var statusLabel: UILabel!
     override func viewDidLoad() {
@@ -49,11 +51,12 @@ class ViewController: UIViewController,CBCentralManagerDelegate,CBPeripheralDele
     }
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
-        if (peripheral.name?.hasSuffix("101"))!{
+        if peripheral.identifier.uuidString == "A6C1857E-7FE0-4C36-890E-AB9CDD253FF7"{
             myPeripheral = peripheral
             central.stopScan()
             central.connect(peripheral, options: nil)
             statusLabel.text? = "开始连接"
+            print("正在连接")
         }
     }
     
@@ -69,5 +72,44 @@ class ViewController: UIViewController,CBCentralManagerDelegate,CBPeripheralDele
         scanbutton.isEnabled = true
     }
 
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        if((error) != nil){
+            statusLabel.text? = "查找服务失败"
+            scanbutton.isEnabled = true
+        }else{
+            for service in peripheral.services! {
+                peripheral.discoverCharacteristics(nil, for: service)
+            }
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        if((error) != nil){
+            statusLabel.text = "查找服务失败"
+            scanbutton.isEnabled = true
+        }else{
+            for characteristic in service.characteristics! {
+                peripheral.setNotifyValue(true, for: characteristic)
+                if(characteristic.uuid.uuidString == distance){
+                    peripheral.readValue(for: characteristic)
+                }
+            }
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        if((error) != nil){
+            statusLabel.text? = "获取数值失败"
+            return
+        }else{
+            if(characteristic.uuid.uuidString == distance){
+                var distancebyte = [UInt8](characteristic.value!)
+                let distancevalue : Int = Int.init(distancebyte[0])
+                self.statusLabel.text = String.init(format: "距离是：%d",statusLabel.text!,distancevalue)
+            }
+            scanbutton.isEnabled = true
+            statusLabel.text = "Done"
+        }
+    }
 }
 
